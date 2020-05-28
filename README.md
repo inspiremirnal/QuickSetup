@@ -48,4 +48,3 @@ from there on its easy to refer to `kubernetes-the-hard-way` guide and perform t
 
 ### Clean-up
 ```cleanup.sh``` will do the instances clean-up reclaiming all the resources back :)
-

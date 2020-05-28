@@ -1,0 +1,28 @@
+#cloud-config
+#
+# This is an example file to automatically configure resolv.conf when the
+# instance boots for the first time.
+#
+# Ensure that your yaml is valid and pass this as user-data when starting
+# the instance. Also be sure that your cloud.cfg file includes this
+# configuration module in the appropriate section.
+#
+users:
+  - name: ubuntu
+    ssh-authorized-keys:
+      - <add local public key here>
+
+## Below is a Hack for MacOS & Multipass Issue
+## Ref: https://discourse.ubuntu.com/t/troubleshooting-networking-on-macos/12901
+
+runcmd:
+  - cp /etc/netplan/50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml.bak
+  - sed -i -e '13i\\            nameservers:' /etc/netplan/50-cloud-init.yaml
+  - sed -i -e '14i\\                addresses:\ [8.8.8.8, 8.8.4.4]' /etc/netplan/50-cloud-init.yaml
+  - netplan apply
+  - systemd-resolve --status | grep 'DNS Servers' -A2
+  - DEBIAN_FRONTEND=noninteractive  apt-get update -y && apt-get upgrade -y
+  - apt-get -y autoremove
+  - apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+  - apt-get install -y haproxy
+

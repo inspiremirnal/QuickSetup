@@ -1,0 +1,47 @@
+#cloud-config
+#
+# This is an example file to automatically configure resolv.conf when the
+# instance boots for the first time.
+#
+# Ensure that your yaml is valid and pass this as user-data when starting
+# the instance. Also be sure that your cloud.cfg file includes this
+# configuration module in the appropriate section.
+#
+
+write_files:
+- encoding: b64
+  content: ewogICJleGVjLW9wdHMiOiBbIm5hdGl2ZS5jZ3JvdXBkcml2ZXI9c3lzdGVtZCJdLAogICJsb2ctZHJpdmVyIjogImpzb24tZmlsZSIsCiAgImxvZy1vcHRzIjogewogICAgIm1heC1zaXplIjogIjEwMG0iCiAgfSwKICAic3RvcmFnZS1kcml2ZXIiOiAib3ZlcmxheTIiCn0K
+  owner: root:root
+  path: /etc/docker/daemon.json
+  permission: 0644
+
+users:
+  - name: ubuntu
+    ssh-authorized-keys:
+      - <add local public key here>
+
+## Below is a Hack for MacOS & Multipass Issue
+## Ref: https://discourse.ubuntu.com/t/troubleshooting-networking-on-macos/12901
+
+runcmd:
+  - cp /etc/netplan/50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml.bak
+  - sed -i -e '13i\\            nameservers:' /etc/netplan/50-cloud-init.yaml
+  - sed -i -e '14i\\                addresses:\ [8.8.8.8, 8.8.4.4]' /etc/netplan/50-cloud-init.yaml
+  - netplan apply
+  - systemd-resolve --status | grep 'DNS Servers' -A2
+  - DEBIAN_FRONTEND=noninteractive  apt-get update -y && apt-get upgrade -y
+  - apt-get -y autoremove
+  - apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  - apt-get -y install docker-ce docker-ce-cli containerd.io
+  - apt-get update && sudo apt-get install -y apt-transport-https curl
+  - curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+  - add-apt-repository "deb [arch=amd64] https://apt.kubernetes.io/ kubernetes-xenial main"
+  - apt-get install -y kubelet=1.16.10-00 kubeadm=1.16.10-00 kubectl=1.16.10-00
+  - apt-mark hold kubelet kubeadm kubectl docker-ce
+  - echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee -a /etc/sysctl.conf
+  - sysctl -p
+  - mkdir -p /etc/systemd/system/docker.service.d
+  - systemctl daemon-reload
+  - systemctl restart docker
